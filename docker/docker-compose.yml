@@ -1,0 +1,226 @@
+# =============================================================================
+#  Virtual test topology
+#
+#  All containers run --privileged + --network host so that:
+#    • AF_XDP sockets can bind to real kernel veth interfaces
+#    • BPF maps can be pinned under /sys/fs/bpf
+#    • XDP programs can be loaded via libxdp
+#
+#  The host-side veth setup is performed by the `net-setup` init container
+#  (runs once, exits 0) before any other container starts.
+#
+#  Interface naming convention (all in host netns):
+#    veth-client          ← client egress (peer: veth-lb-in)
+#    veth-lb-in           ← load_balancer input
+#    veth-lb-fw0 … fw3    ← load_balancer → firewall output links
+#    veth-fw0-lb … fw3-lb ← firewall → load_balancer (peer of above)
+#    veth-fw0-mp … fw3-mp ← firewall → controller input links
+#    veth-mp-fw0 … mp-fw3 ← controller input (peer of above)
+#    veth-mp-out          ← controller → server output
+#    veth-server          ← server ingress (peer: veth-mp-out)
+#
+# =============================================================================
+
+services:
+
+  net-setup:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: traffic-gen
+    image: traffic-gen:latest
+    container_name: net-setup
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+    entrypoint: ["/bin/bash", "/usr/local/bin/net_setup.sh"]
+    restart: "no"
+
+  load_balancer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: load_balancer
+    image: load_balancer:latest
+    container_name: load_balancer
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+    environment:
+      - INPUT_IFACES=veth-lb-in
+      - OUTPUT_IFACES=veth-lb-fw0 veth-lb-fw1 veth-lb-fw2 veth-lb-fw3
+      - BAL_INGRESS_OBJ=/opt/xdp/bal_kern_ingress.o
+      - BAL_EGRESS_OBJ=/opt/xdp/bal_kern_egress.o
+      - BPF_PIN_DIR=/sys/fs/bpf/xsks_map
+    depends_on:
+      net-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "test", "-e", "/sys/fs/bpf/xsks_map/xsks_map"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  fw0:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: traffic-gen
+    image: traffic-gen:latest
+    container_name: fw0
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+    environment:
+      - FW_ID=0
+      - INGRESS=veth-fw0-lb
+      - EGRESS=veth-fw0-mp
+      - DROP_RATE=0          # 0-100 percent, for failure simulation
+    entrypoint: ["/entrypoint.sh"]
+    depends_on:
+      net-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  fw1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: traffic-gen
+    image: traffic-gen:latest
+    container_name: fw1
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+    environment:
+      - FW_ID=1
+      - INGRESS=veth-fw1-lb
+      - EGRESS=veth-fw1-mp
+      - DROP_RATE=0
+    entrypoint: ["/entrypoint.sh"]
+    depends_on:
+      net-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  fw2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: traffic-gen
+    image: traffic-gen:latest
+    container_name: fw2
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+    environment:
+      - FW_ID=2
+      - INGRESS=veth-fw2-lb
+      - EGRESS=veth-fw2-mp
+      - DROP_RATE=0
+    entrypoint: ["/entrypoint.sh"]
+    depends_on:
+      net-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  fw3:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: traffic-gen
+    image: traffic-gen:latest
+    container_name: fw3
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+    environment:
+      - FW_ID=3
+      - INGRESS=veth-fw3-lb
+      - EGRESS=veth-fw3-mp
+      - DROP_RATE=0
+    entrypoint: ["/entrypoint.sh"]
+    depends_on:
+      net-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  controller:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: controller
+    image: controller:latest
+    container_name: controller
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      - /sys/fs/bpf:/sys/fs/bpf
+    environment:
+      - INPUT_IFACES=veth-mp-fw0 veth-mp-fw1 veth-mp-fw2 veth-mp-fw3
+      - OUTPUT_IFACE=veth-mp-out
+      - CON_INGRESS_OBJ=/opt/xdp/con_kern_ingress.o
+      - CON_EGRESS_OBJ=/opt/xdp/con_kern_egress.o
+      - BPF_PIN_DIR=/sys/fs/bpf/xsks_map
+    depends_on:
+      net-setup:
+        condition: service_completed_successfully
+      load_balancer:
+        condition: service_healthy
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: traffic-gen
+    image: traffic-gen:latest
+    container_name: client
+    privileged: true
+    network_mode: host
+    pid: host
+    environment:
+      - ROLE=client
+      - IFACE=veth-client
+      - TARGET_IP=10.0.5.2       # server IP
+      - TCP_PORT=8080
+      - UDP_PORT=9090
+    depends_on:
+      controller:
+        condition: service_started
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: traffic-gen
+    image: traffic-gen:latest
+    container_name: server
+    privileged: true
+    network_mode: host
+    pid: host
+    environment:
+      - ROLE=server
+      - IFACE=veth-server
+      - LISTEN_IP=10.0.5.2
+      - TCP_PORT=8080
+      - UDP_PORT=9090
+    depends_on:
+      net-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped

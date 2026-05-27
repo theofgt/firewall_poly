@@ -1,0 +1,9 @@
+
+services:
+  load_balancer:
+    environment:
+      - OUTPUT_IFACES=veth-lb-fw0
+
+  controller:
+    environment:
+      - INPUT_IFACES=veth-mp-fw0
