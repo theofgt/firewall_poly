@@ -5,7 +5,7 @@ Correctness tests for the firewall-polymorphism pipeline.
 
 The script runs as a privileged container (--network host) and acts as
 both client (veth-client / 10.0.0.1) and server (veth-server / 10.0.5.2).
-Stop the traffic-gen client and server containers before running this.
+Stop the traffic-gen client and server containers before running this using the following command.
 
 Usage:
     ./run_tests.sh

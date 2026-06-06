@@ -3,7 +3,7 @@
 throughput_iperf3.py — iperf3 UDP forward-only throughput benchmark.
 
 Full pipeline (4 FWs, all XDP programs loaded):
-  veth-client → bal_kern_ingress → LB(AF_XDP, 4× UDP copies)
+  veth-client → bal_kern_ingress → LB(AF_XDP, 4x UDP copies)
               → FW bridges → con_kern_ingress (fast-path to veth-mp-out) → veth-server
 
 Baseline (no AF_XDP, no XDP programs, kernel routing lb-in→mp-out directly):
@@ -13,7 +13,6 @@ Baseline (no AF_XDP, no XDP programs, kernel routing lb-in→mp-out directly):
 Metric: veth-mp-out tx_bytes delta / elapsed.
 
 Run with sudo on the host (not inside a container):
-    cd final/docker
     sudo python3 tests/throughput_iperf3.py [--duration 30] [--bandwidth 1G]
 """
 

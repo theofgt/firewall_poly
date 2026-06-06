@@ -118,7 +118,6 @@ int xsk_redir_prog(struct xdp_md *ctx)
     if (ip->protocol != IPPROTO_TCP && ip->protocol != IPPROTO_UDP)
         return XDP_PASS;
 
-    /* ── Resolve ingress firewall slot once ── */
     __u32 my_slot = get_fw_slot(ctx->ingress_ifindex);
 
     /* ── TCP ── */
@@ -141,10 +140,8 @@ int xsk_redir_prog(struct xdp_md *ctx)
         /*
          * Pure SYN: always route to userspace (controller) for a fresh
          * handshake, even if a fast-path entry already exists for this
-         * 4-tuple.  This handles the case where a client restarts and
-         * reuses a source port before the 30 s LRU entry expires — without
-         * this check the stale entry causes the SYN to be fast-pathed and
-         * then dropped by the is_header_only guard.
+         * 4-tuple. This handles the case where a client restarts and
+         * reuses a source port before the 30 s LRU entry expires.
          */
         if (tcp->syn && !tcp->ack)
         {
@@ -181,14 +178,6 @@ int xsk_redir_prog(struct xdp_md *ctx)
                  * Entry is evicted when both bits are set: either on the
                  * client's closing FIN (if server FIN came first) or on the
                  * client's final ACK (if client FIN came first).
-                 *
-                 * Guard: during the heartbeat failover race the LB may still
-                 * be routing full copies to the old (now-dead) primary while
-                 * we have already promoted a new primary here.  The new
-                 * primary therefore receives headers-only copies from the LB.
-                 * Forwarding those to the server would deliver zero-payload
-                 * segments, corrupting the TCP stream.  Drop them and wait for
-                 * the LB to update its routing table.
                  */
                 struct iface_info *oinfo = get_output_info();
                 if (!oinfo || !oinfo->ifindex)

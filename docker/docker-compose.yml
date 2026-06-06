@@ -7,17 +7,17 @@
 #    • XDP programs can be loaded via libxdp
 #
 #  The host-side veth setup is performed by the `net-setup` init container
-#  (runs once, exits 0) before any other container starts.
+#  before any other container starts.
 #
 #  Interface naming convention (all in host netns):
-#    veth-client          ← client egress (peer: veth-lb-in)
+#    veth-client          ← client egress
 #    veth-lb-in           ← load_balancer input
 #    veth-lb-fw0 … fw3    ← load_balancer → firewall output links
-#    veth-fw0-lb … fw3-lb ← firewall → load_balancer (peer of above)
+#    veth-fw0-lb … fw3-lb ← firewall → load_balancer
 #    veth-fw0-mp … fw3-mp ← firewall → controller input links
-#    veth-mp-fw0 … mp-fw3 ← controller input (peer of above)
+#    veth-mp-fw0 … mp-fw3 ← controller input
 #    veth-mp-out          ← controller → server output
-#    veth-server          ← server ingress (peer: veth-mp-out)
+#    veth-server          ← server ingress
 #
 # =============================================================================
 

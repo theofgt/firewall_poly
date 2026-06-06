@@ -15,10 +15,6 @@
 /* Number of firewall slots — must match NUM_OUTPUT_SOCKETS in userspace. */
 #define NUM_OUTPUT_SOCKETS 4
 
-/* -------------------------------------------------------------------------
- * Maps shared across XDP programs
- * ------------------------------------------------------------------------- */
-
 /*
  * iface_to_fw_map – ifindex → firewall slot index (0-based).
  * Populated by controller and load_balancer at startup.
@@ -29,7 +25,7 @@
 struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, NUM_OUTPUT_SOCKETS * 2);
+    __uint(max_entries, NUM_OUTPUT_SOCKETS * 2); /* map is shared, can halve max_entries if we create 2 maps instead */
     __type(key, __u32);   /* ifindex */
     __type(value, __u32); /* firewall slot 0..NUM_OUTPUT_SOCKETS-1 */
     __uint(pinning, LIBBPF_PIN_BY_NAME);

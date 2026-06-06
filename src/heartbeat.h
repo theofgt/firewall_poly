@@ -29,17 +29,13 @@
 #define HB_TYPE_ACK 0x02
 
 /* Probe IP/port identifiers – arbitrary reserved values */
-#define HB_SRC_IP "169.254.0.1" /* link-local, won't clash with traffic */
+#define HB_SRC_IP "169.254.0.1"
 #define HB_DST_IP "169.254.0.2"
-#define HB_UDP_PORT 9999 /* well-known probe port */
+#define HB_UDP_PORT 9999
 
 /* Timing */
 #define HEARTBEAT_INTERVAL_NS (500ULL * 1000 * 1000)     /* 500 ms */
 #define HEARTBEAT_TIMEOUT_NS (2ULL * 1000 * 1000 * 1000) /* 2 s → dead */
-
-/* BPF map path for the load balancer's liveness state (written by load_balancer.c,
- * read by bal_kern_egress.c). */
-#define FW_STATE_MAP_PATH "/sys/fs/bpf/xsks_map/fw_state_map"
 
 /* Grace period after a dead→alive transition during which the FW is
  * ineligible as primary (used by both LB and con_kern_ingress). */

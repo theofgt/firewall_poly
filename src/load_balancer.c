@@ -689,7 +689,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "WARN: client_ifindex_map not available (%s) - return bpf_redirect disabled\n",
                 strerror(errno));
 
-    fw_state_map_fd = bpf_obj_get(FW_STATE_MAP_PATH);
+    fw_state_map_fd = bpf_obj_get("/sys/fs/bpf/xsks_map/fw_state_map");
     if (fw_state_map_fd < 0)
         fprintf(stderr, "WARN: fw_state_map not available (%s) - kernel state disabled\n",
                 strerror(errno));
