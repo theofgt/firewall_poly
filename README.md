@@ -4,7 +4,7 @@
 All commands are run from the `docker/` directory where `docker-compose.yml` lives.
 
 ```bash
-cd final/docker
+cd docker
 
 # 1. Build all images (builder stage compiles everything from source)
 docker compose build
@@ -20,7 +20,7 @@ docker compose logs -f load_balancer controller client server
 ## Tests
 
 ```bash
-cd final/tests
+cd tests
 
 # Correctness tests
 
